@@ -191,6 +191,7 @@ int main(int argc, char **argv) {
 
   // Get the input args
   int port =  strtol(argv[1], NULL, 10);
+  printf("%d\n",port);
   char *path = argv[2];
   int num_dispatcher = strtol(argv[3], NULL, 10);
   int num_workers =  strtol(argv[4], NULL, 10);
@@ -227,16 +228,26 @@ int main(int argc, char **argv) {
 
   for(int i=0; i<num_dispatcher; i++){
     pthread_t t;
+
+    pthread_attr_t attr; //added 
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
     //pthread_create (&t1,NULL,thread_fn, (void* )&x);
     //pthread_create(tid + i, NULL, processfd, (fd + i)))
-    pthread_create(&t, NULL, dispatch, NULL);
+    pthread_create(&t, &attr, dispatch, NULL);
   }
 
    for(int i=0; i<num_workers; i++){
     pthread_t t;
     //pthread_create (&t1,NULL,thread_fn, (void* )&x);
     //pthread_create(tid + i, NULL, processfd, (fd + i)))
-    pthread_create(&t, NULL, worker, NULL);
+
+     pthread_attr_t attr; //added 
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    pthread_create(&t, &attr, worker, NULL);
   }
 
   // Create dynamic pool manager thread (extra credit A)
