@@ -154,10 +154,10 @@ void * dispatch(void *arg) {
 // Function to retrieve the request from the queue, process it and then return a result to the client
 void * worker(void *arg) {
   
-
   //WDchar *currRequest;
-  char *contentType;
-
+  //char *contentType;
+  //char buffer[1000];
+   // return_error(accept_connection(),buffer);
    while (1) {
     struct request_queue req; 
     memset((void *)req.request, '\0',1024); // blank out chunk 
@@ -243,7 +243,7 @@ int main(int argc, char **argv) {
     //pthread_create (&t1,NULL,thread_fn, (void* )&x);
     //pthread_create(tid + i, NULL, processfd, (fd + i)))
 
-     pthread_attr_t attr; //added 
+    pthread_attr_t attr; //added 
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
