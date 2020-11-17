@@ -13,12 +13,18 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
 
 #define MAX_THREADS 100
 #define MAX_queue_len 100
 #define MAX_CE 100
 #define INVALID -1
 #define BUFF_SIZE 1024
+
+ // global key
+//int mid = msgget(key,0666|IPC_CREAT); // global queue id
 
 /*
   THE CODE STRUCTURE GIVEN BELOW IS JUST A SUGGESTION. FEEL FREE TO MODIFY AS NEEDED
@@ -27,7 +33,8 @@
 // structs:
 typedef struct request_queue {
    int fd;
-   char *request;
+   char request[BUFF_SIZE]; // change from char *request, might be a problem
+   //char* request
 } request_t;
 
 typedef struct cache_entry {
@@ -52,6 +59,7 @@ void * dynamic_pool_size_update(void *arg) {
 // Function to check whether the given request is present in cache
 int getCacheIndex(char *request){
   /// return the index if the request is present in the cache
+  return 0;
 }
 
 // Function to add the request and its file content into the cache
@@ -77,26 +85,65 @@ void initCache(){
 char* getContentType(char * mybuf) {
   // Should return the content type based on the file type in the request
   // (See Section 5 in Project description for more details)
+char * final = "";
+  char *token = strchr(mybuf, '.'); 
+
+  if(strcmp(token,".html")){
+     final = "text/html";
+  }
+  else if(strcmp(token,".jpg")){
+    final = "image/jpeg";
+  }
+  else if(strcmp(token,".gif")){
+    final = "image/gif";
+  } else {
+    final = "text/plain";
+  }
+  return final;
+
 }
 
 // Function to open and read the file from the disk into the memory
 // Add necessary arguments as needed
 int readFromDisk(/*necessary arguments*/) {
     // Open and read the contents of file given the request
+    return 0;
 }
 
 /**********************************************************************************/
 
 // Function to receive the request from the client and add to the queue
 void * dispatch(void *arg) {
-
+  
+  int fd;
+  char buf[1024];
+  
+  
   while (1) {
+    struct request_queue req; 
+    memset((void *)req.request, '\0',1024); // blank out chunk 
 
     // Accept client connection
+    fd = accept_connection();
 
     // Get request from the client
+    if (get_request(fd, buf) == 0){
+      /*returns 0 on success, nonzero on failure. You must account
+     for failures because some connections might send faulty
+     requests. This is a recoverable error - you must not exit
+     inside the thread that called get_request. After an error, you
+     must NOT use a return_request or return_error function for that
+     specific 'connection'. */
+    }
 
     // Add the request into the queue
+    strcpy(req.request, buf);
+    req.fd = fd; 
+   //requestQ->request = buf;
+   // requestQ->fd = fd;
+   key_t key = ftok("./ftok.txt", 4061);
+   int mid = msgget(key,0666|IPC_CREAT); 
+   msgsnd(mid, (void *)&req,BUFF_SIZE,0);
 
    }
    return NULL;
@@ -106,14 +153,26 @@ void * dispatch(void *arg) {
 
 // Function to retrieve the request from the queue, process it and then return a result to the client
 void * worker(void *arg) {
+  
+
+  //WDchar *currRequest;
+  char *contentType;
 
    while (1) {
+    struct request_queue req; 
+    memset((void *)req.request, '\0',1024); // blank out chunk 
 
     // Get the request from the queue
+    //currRequest = requestQ->request;
+    key_t key = ftok("./ftok.txt", 4061);
+    int mid = msgget(key,0666|IPC_CREAT); 
+    msgrcv(mid,(void *)&req, BUFF_SIZE, 0, 0);
 
     // Get the data from the disk or the cache (extra credit B)
 
     // Log the request into the file and terminal
+    contentType = getContentType(req.request);
+    return_result(req.fd,contentType,req.request, 1024); 
 
     // return the result
   }
@@ -131,23 +190,57 @@ int main(int argc, char **argv) {
   }
 
   // Get the input args
+  int port =  strtol(argv[1], NULL, 10);
+  char *path = argv[2];
+  int num_dispatcher = strtol(argv[3], NULL, 10);
+  int num_workers =  strtol(argv[4], NULL, 10);
 
   // Perform error checks on the input arguments
 
   // Change SIGINT action for grace termination
 
-  // Open log file
+  // initialize new sigset - sigset_t, sigemptyset
+  sigset_t set;
+
+  sigemptyset(&set);
+
+	// add SIGINT to sigset - sigaddset
+  sigaddset(&set, SIGINT);
+	// block SIGINT - sigprocmask
+  if (sigprocmask(SIG_BLOCK, &set, NULL) == -1)
+    return -1;
+
+  // Open log file (skip for now)
 
   // Change the current working directory to server root directory
+  chdir(path);
 
   // Initialize cache (extra credit B)
 
   // Start the server
+  init(port);
 
   // Create dispatcher and worker threads (all threads should be detachable)
 
-  // Create dynamic pool manager thread (extra credit A)
+  //pthread_t disparr[num_dispatcher]; 
+  //pthread_t worparr[num_workers]; 
 
+  for(int i=0; i<num_dispatcher; i++){
+    pthread_t t;
+    //pthread_create (&t1,NULL,thread_fn, (void* )&x);
+    //pthread_create(tid + i, NULL, processfd, (fd + i)))
+    pthread_create(&t, NULL, dispatch, NULL);
+  }
+
+   for(int i=0; i<num_workers; i++){
+    pthread_t t;
+    //pthread_create (&t1,NULL,thread_fn, (void* )&x);
+    //pthread_create(tid + i, NULL, processfd, (fd + i)))
+    pthread_create(&t, NULL, worker, NULL);
+  }
+
+  // Create dynamic pool manager thread (extra credit A)
+  
   // Terminate server gracefully
     // Print the number of pending requests in the request queue
     // close log file
