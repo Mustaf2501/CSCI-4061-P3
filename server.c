@@ -15,6 +15,7 @@
 #include <signal.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <time.h>
 
 
 #define MAX_THREADS 100
@@ -86,7 +87,7 @@ char* getContentType(char * mybuf) {
   // Should return the content type based on the file type in the request
   // (See Section 5 in Project description for more details)
 char * final = "";
-  char *token = strchr(mybuf, '.'); 
+  char *token = strchr(mybuf, '.');
 
   if(strcmp(token,".html")){
      final = "text/html";
@@ -114,14 +115,14 @@ int readFromDisk(/*necessary arguments*/) {
 
 // Function to receive the request from the client and add to the queue
 void * dispatch(void *arg) {
-  
+
   int fd;
   char buf[1024];
-  
-  
+
+
   while (1) {
-    struct request_queue req; 
-    memset((void *)req.request, '\0',1024); // blank out chunk 
+    struct request_queue req;
+    memset((void *)req.request, '\0',1024); // blank out chunk
 
     // Accept client connection
     fd = accept_connection();
@@ -138,11 +139,11 @@ void * dispatch(void *arg) {
 
     // Add the request into the queue
     strcpy(req.request, buf);
-    req.fd = fd; 
+    req.fd = fd;
    //requestQ->request = buf;
    // requestQ->fd = fd;
    key_t key = ftok("./ftok.txt", 4061);
-   int mid = msgget(key,0666|IPC_CREAT); 
+   int mid = msgget(key,0666|IPC_CREAT);
    msgsnd(mid, (void *)&req,BUFF_SIZE,0);
 
    }
@@ -153,26 +154,26 @@ void * dispatch(void *arg) {
 
 // Function to retrieve the request from the queue, process it and then return a result to the client
 void * worker(void *arg) {
-  
+
 
   //WDchar *currRequest;
   char *contentType;
 
    while (1) {
-    struct request_queue req; 
-    memset((void *)req.request, '\0',1024); // blank out chunk 
+    struct request_queue req;
+    memset((void *)req.request, '\0',1024); // blank out chunk
 
     // Get the request from the queue
     //currRequest = requestQ->request;
     key_t key = ftok("./ftok.txt", 4061);
-    int mid = msgget(key,0666|IPC_CREAT); 
+    int mid = msgget(key,0666|IPC_CREAT);
     msgrcv(mid,(void *)&req, BUFF_SIZE, 0, 0);
 
     // Get the data from the disk or the cache (extra credit B)
 
     // Log the request into the file and terminal
     contentType = getContentType(req.request);
-    return_result(req.fd,contentType,req.request, 1024); 
+    return_result(req.fd,contentType,req.request, 1024);
 
     // return the result
   }
@@ -188,7 +189,7 @@ int main(int argc, char **argv) {
     printf("usage: %s port path num_dispatcher num_workers dynamic_flag queue_length cache_size\n", argv[0]);
     return -1;
   }
-
+  printf("??????????????\n");
   // Get the input args
   int port =  strtol(argv[1], NULL, 10);
   printf("%d\n",port);
@@ -223,13 +224,13 @@ int main(int argc, char **argv) {
 
   // Create dispatcher and worker threads (all threads should be detachable)
 
-  //pthread_t disparr[num_dispatcher]; 
-  //pthread_t worparr[num_workers]; 
+  //pthread_t disparr[num_dispatcher];
+  //pthread_t worparr[num_workers];
 
   for(int i=0; i<num_dispatcher; i++){
     pthread_t t;
 
-    pthread_attr_t attr; //added 
+    pthread_attr_t attr; //added
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
@@ -243,15 +244,15 @@ int main(int argc, char **argv) {
     //pthread_create (&t1,NULL,thread_fn, (void* )&x);
     //pthread_create(tid + i, NULL, processfd, (fd + i)))
 
-     pthread_attr_t attr; //added 
+     pthread_attr_t attr; //added
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
     pthread_create(&t, &attr, worker, NULL);
   }
-
+  sleep(10000); // wat  
   // Create dynamic pool manager thread (extra credit A)
-  
+
   // Terminate server gracefully
     // Print the number of pending requests in the request queue
     // close log file
