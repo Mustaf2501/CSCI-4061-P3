@@ -250,13 +250,13 @@ int main(int argc, char **argv) {
 
     pthread_create(&t, &attr, worker, NULL);
   }
-  sleep(10000); // wat  
+  //sleep(60); // wat
   // Create dynamic pool manager thread (extra credit A)
 
   // Terminate server gracefully
     // Print the number of pending requests in the request queue
     // close log file
     // Remove cache (extra credit B)
-
-  return 0;
+int a = 9;
+pthread_exit((void*)&a);
 }
