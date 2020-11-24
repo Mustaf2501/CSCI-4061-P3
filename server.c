@@ -24,6 +24,8 @@
 #define INVALID -1
 #define BUFF_SIZE 1024
 
+pthread_mutex_t lock;
+
  // global key
 //int mid = msgget(key,0666|IPC_CREAT); // global queue id
 
@@ -80,6 +82,48 @@ void deleteCache(){
 void initCache(){
   // Allocating memory and initializing the cache array
 }
+
+void logs(int id, int reqnum, int fd, char* request_string, int bytes){
+    pthread_mutex_lock(&lock);
+    FILE* f = fopen("web_server_log.txt","a+");
+    
+    char cid[50];
+    char creqnum[50];
+    char cfd[50];
+    char cbytes[50]; 
+
+    sprintf(cid, "%d", id);
+    sprintf(creqnum, "%d", reqnum);
+    sprintf(cfd, "%d", fd);
+    sprintf(cbytes, "%d", bytes);
+
+   // char log[200];
+    fputs("[", f );
+    fputs(cid , f );
+    fputs("]", f );
+    fputs("[", f );
+    fputs(creqnum , f );
+    fputs("]"  , f );
+    fputs("[" , f );
+    fputs(cfd  , f );
+    fputs("]" , f );
+    fputs("[" , f );
+    fputs(request_string , f );
+    fputs("]" , f );
+    fputs("[" , f );
+    fputs(cbytes ,f );
+    fputs("]\n" ,f );
+
+  //  printf("NEW LOG : %s \n", log);
+
+   // fwrite(log , 1 , sizeof(log) , f );
+  
+    fclose(f); 
+    pthread_mutex_unlock(&lock);
+
+   
+}
+
 
 /**********************************************************************************/
 
@@ -171,7 +215,7 @@ void * dispatch(void *arg) {
    key_t key = ftok("./ftok.txt", 4061);
    int mid = msgget(key,0666|IPC_CREAT);
    msgsnd(mid, (void *)&req,BUFF_SIZE,0);
-
+      
    }
    return NULL;
 }
@@ -180,10 +224,12 @@ void * dispatch(void *arg) {
 
 // Function to retrieve the request from the queue, process it and then return a result to the client
 void * worker(void *arg) {
-
+    long int size;
+    int tid = *((int *) arg);
+    free(arg);
   //WDchar *currRequest;
   char *contentType;
-
+      int i =0;
    while (1) {
     struct request_queue req;
    // while(number_of_request_in_queue ==0){
@@ -198,6 +244,7 @@ void * worker(void *arg) {
     //printf("2 \n");
     int mid = msgget(key,0666|IPC_CREAT);
     //printf("3 \n");
+    
     msgrcv(mid,(void *)&req, BUFF_SIZE, 0, 0);
     //printf("4 \n");
 
@@ -205,10 +252,9 @@ void * worker(void *arg) {
     if (strcmp(req.request, "/") != 0){
       printf("Recieved Request\n");
       printf("Data : %s \n",req.request);
-
     // Log the request into the file and terminal
     contentType = getContentType(req.request);
-    long int size = readFromDisk(req.request);
+    size = readFromDisk(req.request);
     printf("after readFromDisk %ld\n", size);
     printf("req.request: %s\n", req.request);
      char path0[100] = "testing/testing";
@@ -218,24 +264,24 @@ void * worker(void *arg) {
     //fread(memory, 1, size_t nmemb, fp);
     //read(); 
    fread(memory, 1,size, fp);
-   fclose(fp);
+    
    
-    return_result(req.fd,contentType,memory, size);
+   return_result(req.fd,contentType,memory, size);
+   free(memory);
+   fclose(fp);
+     
     }
+   // char buffer[BUFF_SIZE];
 
+   // printf("pthread: %d \n fd: %s\n reqString: %s\n, //size: %ld", pthread_self(),req.fd,get_request(req.fd,//buffer),size);
+            i++;
+    logs(tid,i,req.fd,req.request,size);
     // return the result
   }
   return NULL;
 }
 
-int logger(int id, int fd, char* request_string, int bytes){
-    //FILE * f = fopen("web_server_log", "ab+"); 
-    //char id[50];
-    //char fd[50];
-    //char bytes[50]; 
-    return 0;
-}
-
+ 
 void handle(int signo) {
   exit(0);
 }  
@@ -265,16 +311,12 @@ int main(int argc, char **argv) {
   sigemptyset(&act.sa_mask);
   sigaction(SIGINT, &act, NULL);
   
-  //initialize new sigset - sigset_t, sigemptyset
-  //sigset_t set;
-  //sigemptyset(&set);
-	//add SIGINT to sigset - sigaddset
-  //sigaddset(&set, SIGINT);
-	//block SIGINT - sigprocmask
-  //if (sigprocmask(SIG_BLOCK, &set, NULL) == -1)
-    //return -1;
+   
 
   // Open log file (skip for now)
+  FILE* f = fopen("web_server_log.txt","a+");
+  fclose(f); 
+
 
   // Change the current working directory to server root directory
   chdir(path);
@@ -302,6 +344,9 @@ int main(int argc, char **argv) {
   }
 
    for(int i=0; i<num_workers; i++){
+
+    int *arg = malloc(sizeof(*arg)); 
+    *arg = i;
     pthread_t t;
     //pthread_create (&t1,NULL,thread_fn, (void* )&x);
     //pthread_create(tid + i, NULL, processfd, (fd + i)))
@@ -310,7 +355,7 @@ int main(int argc, char **argv) {
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-    pthread_create(&t, &attr, worker, NULL);
+    pthread_create(&t, &attr, worker, arg);
   }
   //sleep(60); // wat
   // Create dynamic pool manager thread (extra credit A)
