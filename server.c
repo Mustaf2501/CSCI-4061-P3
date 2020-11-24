@@ -44,6 +44,8 @@ typedef struct cache_entry {
     char *content;
 } cache_entry_t;
 
+
+static int number_of_request_in_queue = 0;
 /* ******************** Dynamic Pool Code  [Extra Credit A] **********************/
 // Extra Credit: This function implements the policy to change the worker thread pool dynamically
 // depending on the number of requests
@@ -86,16 +88,18 @@ void initCache(){
 char* getContentType(char * mybuf) {
   // Should return the content type based on the file type in the request
   // (See Section 5 in Project description for more details)
-char * final = "";
+char * final = "";  
   char *token = strchr(mybuf, '.');
+  //printf("token : %s | buf : %s \n", token, mybuf ); 
 
-  if(strcmp(token,".html")){
+  if(strcmp(token,".html") == 0){
      final = "text/html";
   }
-  else if(strcmp(token,".jpg")){
+  else if(strcmp(token,".jpg") == 0){
+    printf("jpg\n");
     final = "image/jpeg";
   }
-  else if(strcmp(token,".gif")){
+  else if(strcmp(token,".gif") == 0){
     final = "image/gif";
   } else {
     final = "text/plain";
@@ -106,19 +110,41 @@ char * final = "";
 
 // Function to open and read the file from the disk into the memory
 // Add necessary arguments as needed
-int readFromDisk(/*necessary arguments*/) {
-    // Open and read the contents of file given the request
-    return 0;
+long int readFromDisk(char * mybuf) {
+  printf("read from disk entered\n");
+  char path0[100] = "testing/testing";
+    char *path1 = strcat(path0,mybuf);
+    printf("Path : %s \n", path1); 
+    FILE* fp = fopen(path1, "r"); 
+    
+    //char cwd[1024];
+    //getcwd(cwd, sizeof(cwd));
+    printf("After file open\n");
+    //printf("mybuf: %s\n", mybuf);
+  
+    // checking if the file exist or not 
+    if (fp == NULL) { 
+        printf("File Not Found!\n"); 
+        return -1; 
+    } 
+  
+    fseek(fp, 0L, SEEK_END); 
+  
+    // calculating the size of the file 
+    long int res = ftell(fp); 
+  
+    // closing the file 
+    fclose(fp);
+    return res;
 }
-
+ 
 /**********************************************************************************/
 
 // Function to receive the request from the client and add to the queue
 void * dispatch(void *arg) {
-
+  number_of_request_in_queue++;
   int fd;
   char buf[1024];
-
 
   while (1) {
     struct request_queue req;
@@ -155,31 +181,64 @@ void * dispatch(void *arg) {
 // Function to retrieve the request from the queue, process it and then return a result to the client
 void * worker(void *arg) {
 
-
   //WDchar *currRequest;
   char *contentType;
 
    while (1) {
     struct request_queue req;
+   // while(number_of_request_in_queue ==0){
+        //pthread_cond_wait(cq->cond, cq->mutex);
+  //  }
+    number_of_request_in_queue--;
     memset((void *)req.request, '\0',1024); // blank out chunk
-
+    //printf("1 \n");
     // Get the request from the queue
     //currRequest = requestQ->request;
     key_t key = ftok("./ftok.txt", 4061);
+    //printf("2 \n");
     int mid = msgget(key,0666|IPC_CREAT);
+    //printf("3 \n");
     msgrcv(mid,(void *)&req, BUFF_SIZE, 0, 0);
+    //printf("4 \n");
 
     // Get the data from the disk or the cache (extra credit B)
+    if (strcmp(req.request, "/") != 0){
+      printf("Recieved Request\n");
+      printf("Data : %s \n",req.request);
 
     // Log the request into the file and terminal
     contentType = getContentType(req.request);
-    return_result(req.fd,contentType,req.request, 1024);
+    long int size = readFromDisk(req.request);
+    printf("after readFromDisk %ld\n", size);
+    printf("req.request: %s\n", req.request);
+     char path0[100] = "testing/testing";
+    char *path1 = strcat(path0,req.request);
+    FILE* fp = fopen(path1, "r"); 
+    void* memory = malloc(sizeof(long int)*size);
+    //fread(memory, 1, size_t nmemb, fp);
+    //read(); 
+   fread(memory, 1,size, fp);
+   fclose(fp);
+   
+    return_result(req.fd,contentType,memory, size);
+    }
 
     // return the result
   }
   return NULL;
 }
 
+int logger(int id, int fd, char* request_string, int bytes){
+    //FILE * f = fopen("web_server_log", "ab+"); 
+    //char id[50];
+    //char fd[50];
+    //char bytes[50]; 
+    return 0;
+}
+
+void handle(int signo) {
+  exit(0);
+}  
 /**********************************************************************************/
 
 int main(int argc, char **argv) {
@@ -189,7 +248,7 @@ int main(int argc, char **argv) {
     printf("usage: %s port path num_dispatcher num_workers dynamic_flag queue_length cache_size\n", argv[0]);
     return -1;
   }
-  printf("??????????????\n");
+  //printf("??????????????\n");
   // Get the input args
   int port =  strtol(argv[1], NULL, 10);
   printf("%d\n",port);
@@ -200,17 +259,20 @@ int main(int argc, char **argv) {
   // Perform error checks on the input arguments
 
   // Change SIGINT action for grace termination
-
-  // initialize new sigset - sigset_t, sigemptyset
-  sigset_t set;
-
-  sigemptyset(&set);
-
-	// add SIGINT to sigset - sigaddset
-  sigaddset(&set, SIGINT);
-	// block SIGINT - sigprocmask
-  if (sigprocmask(SIG_BLOCK, &set, NULL) == -1)
-    return -1;
+  struct sigaction act;
+  act.sa_handler = handle;
+  act.sa_flags = 0;
+  sigemptyset(&act.sa_mask);
+  sigaction(SIGINT, &act, NULL);
+  
+  //initialize new sigset - sigset_t, sigemptyset
+  //sigset_t set;
+  //sigemptyset(&set);
+	//add SIGINT to sigset - sigaddset
+  //sigaddset(&set, SIGINT);
+	//block SIGINT - sigprocmask
+  //if (sigprocmask(SIG_BLOCK, &set, NULL) == -1)
+    //return -1;
 
   // Open log file (skip for now)
 
@@ -257,6 +319,10 @@ int main(int argc, char **argv) {
     // Print the number of pending requests in the request queue
     // close log file
     // Remove cache (extra credit B)
-int a = 9;
-pthread_exit((void*)&a);
+    //int a = 9;
+    //int *a = malloc(sizeof(int));
+    //pthread_exit((void*)&a);
+    while(1){
+      sleep(5);
+    }
 }

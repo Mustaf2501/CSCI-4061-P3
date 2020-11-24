@@ -28,9 +28,7 @@ int accept_connection(void);
    - parameters:
       - fd is the file descriptor obtained by accept_connection()
         from where you wish to get a request
-      - filename is the location of a character buffer in which
-        this function should store the requested filename. (Buffer
-        should be of size 1024 bytes.)
+      - filename is the location of a character buffer in which this function should store the requested filename. (Buffer should be of size 1024 bytes.)
    - returns 0 on success, nonzero on failure. You must account
      for failures because some connections might send faulty
      requests. This is a recoverable error - you must not exit
