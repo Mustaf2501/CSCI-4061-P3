@@ -140,7 +140,7 @@ char * final = "";
      final = "text/html";
   }
   else if(strcmp(token,".jpg") == 0){
-    printf("jpg\n");
+    //printf("jpg\n");
     final = "image/jpeg";
   }
   else if(strcmp(token,".gif") == 0){
@@ -155,20 +155,20 @@ char * final = "";
 // Function to open and read the file from the disk into the memory
 // Add necessary arguments as needed
 long int readFromDisk(char * mybuf) {
-  printf("read from disk entered\n");
+  //printf("read from disk entered\n");
   char path0[100] = "testing/testing";
     char *path1 = strcat(path0,mybuf);
-    printf("Path : %s \n", path1); 
+    //printf("Path : %s \n", path1); 
     FILE* fp = fopen(path1, "r"); 
     
     //char cwd[1024];
     //getcwd(cwd, sizeof(cwd));
-    printf("After file open\n");
+    //printf("After file open\n");
     //printf("mybuf: %s\n", mybuf);
   
     // checking if the file exist or not 
     if (fp == NULL) { 
-        printf("File Not Found!\n"); 
+        //printf("File Not Found!\n"); 
         return -1; 
     } 
   
@@ -250,16 +250,22 @@ void * worker(void *arg) {
 
     // Get the data from the disk or the cache (extra credit B)
     if (strcmp(req.request, "/") != 0){
-      printf("Recieved Request\n");
-      printf("Data : %s \n",req.request);
+      //printf("Recieved Request\n");
+      //printf("Data : %s \n",req.request);
     // Log the request into the file and terminal
     contentType = getContentType(req.request);
     size = readFromDisk(req.request);
-    printf("after readFromDisk %ld\n", size);
-    printf("req.request: %s\n", req.request);
+    //printf("after readFromDisk %ld\n", size);
+    //printf("req.request: %s\n", req.request);
      char path0[100] = "testing/testing";
     char *path1 = strcat(path0,req.request);
     FILE* fp = fopen(path1, "r"); 
+    if (fp == NULL){
+      return_error(req.fd,"File not found" );
+      continue;
+
+    }
+     
     void* memory = malloc(sizeof(long int)*size);
     //fread(memory, 1, size_t nmemb, fp);
     //read(); 
@@ -297,7 +303,7 @@ int main(int argc, char **argv) {
   //printf("??????????????\n");
   // Get the input args
   int port =  strtol(argv[1], NULL, 10);
-  printf("%d\n",port);
+  //printf("%d\n",port);
   char *path = argv[2];
   int num_dispatcher = strtol(argv[3], NULL, 10);
   int num_workers =  strtol(argv[4], NULL, 10);
